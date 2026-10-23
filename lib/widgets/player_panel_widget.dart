@@ -27,7 +27,9 @@ class PlayerPanelWidget extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isCurrent ? const Color(0xDD3D1F10) : const Color(0x99180E07),
+        color: isCurrent
+            ? controller.theme.cardCurrentPlayerBg
+            : controller.theme.surfaceBg.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isCurrent ? player.color : Colors.white10,

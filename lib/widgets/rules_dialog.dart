@@ -46,8 +46,8 @@ class RulesDialog extends StatelessWidget {
                         "Be the first player to guide all 4 pawns (सोंगट्या) through the outer perimeter, navigate the inner 'पाणी' stream, and safely enter the center Swarga (स्वर्ग)!",
                       ),
                       _buildSection(
-                        "🐚 Cowrie Shell Toss (कवड्या डाव)",
-                        "• 1 Open: Move 1 space\n• 2 Open: Move 2 spaces\n• 3 Open: Move 3 spaces\n• 4 Open: Move 4 spaces + Extra Roll!\n• 0 Open (All closed): Move 8 spaces (चंपाळ!) + Extra Roll!",
+                        "🎲 Traditional Casting Pieces (कवड्या, खडे, काठ्या, चिंचोके)",
+                        "You can choose your casting piece from the selector:\n• ⚪ White Stones (पांढरे खडे)\n• ⚫ Black Stones (काळे खडे)\n• 🪵 Sticks (काठ्या / Dala)\n• 🌰 Tamarind Seeds (चिंचोके)\n• 🐚 Cowrie Shells (कवड्या)\n\nScoring Rules:\n• 1 Marked face: Move 1 space\n• 2 Marked faces: Move 2 spaces\n• 3 Marked faces: Move 3 spaces\n• 4 Marked faces: Move 4 spaces + Extra Roll!\n• 0 Marked faces (All closed): Move 8 spaces (चंपाळ!) + Extra Roll!",
                       ),
                       Container(
                         margin: const EdgeInsets.symmetric(vertical: 8),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'player.dart';
 import 'pawn.dart';
+import 'dice_type.dart';
 
 class BoardCoord {
   final int row;
@@ -99,49 +100,53 @@ class BoardPaths {
     return [
       Player(
         id: 0,
-        name: "Surya (Red)",
-        marathiName: "सूर्य (लाल)",
+        name: "White Stones (पांढरे खडे)",
+        marathiName: "पांढरे खडे",
         color: const Color(0xFFE63946),
         colorLight: const Color(0xFFFF6B6B),
         colorDark: const Color(0xFF9D0208),
-        avatar: "👑",
+        avatar: "⚪",
         side: "South",
+        tokenType: DiceType.whiteStone,
         isAI: false,
         pawns: List.generate(4, (i) => Pawn(id: i)),
       ),
       Player(
         id: 1,
-        name: "Vana (Green)",
-        marathiName: "वन (हिरवा)",
+        name: "Black Stones (काळे खडे)",
+        marathiName: "काळे खडे",
         color: const Color(0xFF2A9D8F),
         colorLight: const Color(0xFF48CAE4),
         colorDark: const Color(0xFF1B4332),
-        avatar: "🌿",
+        avatar: "⚫",
         side: "West",
+        tokenType: DiceType.blackStone,
         isAI: singlePlayer,
         pawns: List.generate(4, (i) => Pawn(id: i)),
       ),
       Player(
         id: 2,
-        name: "Suvarna (Gold)",
-        marathiName: "सुवर्ण (पिवळा)",
+        name: "Sticks (काठ्या)",
+        marathiName: "काठ्या",
         color: const Color(0xFFE76F51),
         colorLight: const Color(0xFFF4A261),
         colorDark: const Color(0xFFBC4749),
-        avatar: "☀️",
+        avatar: "🪵",
         side: "North",
+        tokenType: DiceType.sticks,
         isAI: singlePlayer,
         pawns: List.generate(4, (i) => Pawn(id: i)),
       ),
       Player(
         id: 3,
-        name: "Mayur (Blue)",
-        marathiName: "मयूर (निळा)",
+        name: "Tamarind Seeds (चिंचोके)",
+        marathiName: "चिंचोके",
         color: const Color(0xFF3A86FF),
         colorLight: const Color(0xFF00B4D8),
         colorDark: const Color(0xFF03045E),
-        avatar: "🦚",
+        avatar: "🌰",
         side: "East",
+        tokenType: DiceType.tamarindSeeds,
         isAI: singlePlayer,
         pawns: List.generate(4, (i) => Pawn(id: i)),
       ),

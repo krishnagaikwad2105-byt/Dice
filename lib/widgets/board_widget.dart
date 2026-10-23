@@ -3,6 +3,9 @@ import '../logic/game_controller.dart';
 import '../models/board_paths.dart';
 import '../models/player.dart';
 import '../models/pawn.dart';
+import '../models/dice_type.dart';
+import 'traditional_dice_widget.dart';
+import 'pawn_token_widget.dart';
 
 class BoardWidget extends StatelessWidget {
   final GameController controller;
@@ -13,53 +16,160 @@ class BoardWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final availableSize = constraints.maxWidth < constraints.maxHeight
-            ? constraints.maxWidth
-            : constraints.maxHeight;
-        final boardSize = (availableSize * 0.96).clamp(280.0, 520.0);
+        // Calculate responsive sizing for board
+        final maxW = constraints.maxWidth;
+        final maxH = constraints.maxHeight;
+        final availableH = maxH.isFinite ? maxH : 720.0;
+        final targetW = (maxW * 0.98).clamp(300.0, 480.0);
+        // Reserve height for header (~42px) and toss footer (~130px)
+        final gridTargetSize = ((availableH - 200.0).clamp(240.0, targetW - 24.0)).clamp(240.0, 420.0);
+
+        final theme = controller.theme;
 
         return Container(
-          width: boardSize,
-          height: boardSize,
+          width: targetW,
           decoration: BoxDecoration(
-            color: const Color(0xFF201107),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF916828), width: 3.5),
+            color: theme.boardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: theme.boardBorder, width: 3.5),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: theme.boardGradient,
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.8),
                 blurRadius: 25,
-                offset: const Offset(0, 15),
+                offset: const Offset(0, 12),
               ),
               BoxShadow(
-                color: const Color(0xFFD4AF37).withValues(alpha: 0.15),
-                blurRadius: 20,
+                color: theme.boardGlow.withValues(alpha: 0.25),
+                blurRadius: 22,
               ),
             ],
           ),
-          padding: const EdgeInsets.all(8.0),
-          child: GridView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 25,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 5,
-              crossAxisSpacing: 3.5,
-              mainAxisSpacing: 3.5,
-            ),
-            itemBuilder: (context, index) {
-              final row = index ~/ 5;
-              final col = index % 5;
-              final coord = BoardCoord(row, col);
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 1. ON-BOARD DICE / TOKEN TYPE SELECTOR
+              _buildOnBoardDiceSelector(),
 
-              return _buildCell(context, coord);
-            },
+              const SizedBox(height: 6),
+
+              // 2. 5x5 TRADITIONAL BOARD GRID
+              SizedBox(
+                width: gridTargetSize,
+                height: gridTargetSize,
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: 25,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 5,
+                    crossAxisSpacing: 3.5,
+                    mainAxisSpacing: 3.5,
+                  ),
+                  itemBuilder: (context, index) {
+                    final row = index ~/ 5;
+                    final col = index % 5;
+                    final coord = BoardCoord(row, col);
+
+                    return _buildCell(context, coord, gridTargetSize / 5);
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // 3. ON-BOARD TOSS ARENA (Displaying White Stones, Black Stones, Sticks, Tamarind Seeds on board)
+              _buildOnBoardTossArena(),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildCell(BuildContext context, BoardCoord coord) {
+  // 1. On-Board Selector for the 4 Traditional Types (+ Cowrie)
+  Widget _buildOnBoardDiceSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0x99120702),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x33D4AF37)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                "⚔️ सोंगटी व फासे / PIECES: ",
+                style: TextStyle(
+                  color: Color(0xFFF7D070),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              Text(
+                controller.diceType.shortName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: DiceType.values.map((type) {
+                final isSelected = controller.diceType == type;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                  child: ChoiceChip(
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+                    label: Text(
+                      "${type.icon} ${type.shortName}",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? Colors.black : Colors.white70,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: const Color(0xFFF7D070),
+                    backgroundColor: const Color(0xFF261206),
+                    side: BorderSide(
+                      color: isSelected
+                          ? const Color(0xFFF7D070)
+                          : const Color(0x33D4AF37),
+                    ),
+                    onSelected: (selected) {
+                      if (selected) {
+                        controller.setDiceType(type);
+                      }
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 2. Cell Builder with authentic sanctuary marks and token rendering
+  Widget _buildCell(BuildContext context, BoardCoord coord, double cellSize) {
     final r = coord.row;
     final c = coord.col;
 
@@ -101,45 +211,46 @@ class BoardWidget extends StatelessWidget {
       }
     }
 
+    final theme = controller.theme;
     BoxDecoration decoration;
 
     if (isCenter) {
       decoration = BoxDecoration(
-        color: const Color(0xFF381A0B),
+        color: theme.cellCenterBg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFD4AF37), width: 2),
-        gradient: const RadialGradient(
-          colors: [Color(0x66D4AF37), Color(0xEE1E0F06)],
-          radius: 0.8,
+        border: Border.all(color: theme.cellCenterBorder, width: 2),
+        gradient: RadialGradient(
+          colors: theme.cellCenterGradient,
+          radius: 0.85,
         ),
       );
     } else if (isSafe) {
-      Color safeBorder = const Color(0xFFD4AF37);
+      Color safeBorder = theme.accentGold;
       if (isSouthHome) safeBorder = const Color(0xFFE63946);
       if (isWestHome) safeBorder = const Color(0xFF2A9D8F);
       if (isNorthHome) safeBorder = const Color(0xFFE76F51);
       if (isEastHome) safeBorder = const Color(0xFF3A86FF);
 
       decoration = BoxDecoration(
-        color: const Color(0xFF25140B),
+        color: theme.cellDefaultBg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: safeBorder.withValues(alpha: 0.6), width: 1.5),
+        border: Border.all(color: safeBorder.withValues(alpha: 0.85), width: 1.8),
         gradient: RadialGradient(
-          colors: [safeBorder.withValues(alpha: 0.25), const Color(0xFF201007)],
+          colors: [safeBorder.withValues(alpha: 0.32), theme.cellDefaultBg],
           radius: 0.85,
         ),
       );
     } else if (isPani) {
       decoration = BoxDecoration(
-        color: const Color(0x8814525A),
+        color: theme.cellPaniBg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0x662EC4B6), width: 1),
+        border: Border.all(color: theme.cellPaniBorder, width: 1.2),
       );
     } else {
       decoration = BoxDecoration(
-        color: const Color(0xFF2E1C12),
+        color: theme.cellDefaultBg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFF5A381F), width: 1),
+        border: Border.all(color: theme.cellDefaultBorder, width: 1),
       );
     }
 
@@ -147,30 +258,105 @@ class BoardWidget extends StatelessWidget {
       decoration: decoration,
       child: Stack(
         children: [
-          // Background Markings
+          // Background Sanctuary Markings
           if (isCenter)
-            const Center(
-              child: Text(
-                "स्वर्ग\nHOME",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFFF7D070),
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  height: 1.1,
-                ),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("⚜️", style: TextStyle(fontSize: 10)),
+                  const Text(
+                    "स्वर्ग\nHOME",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFFF7D070),
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.bold,
+                      height: 1.05,
+                    ),
+                  ),
+                  if (pawnsOnCell.isNotEmpty)
+                    Text(
+                      "(${pawnsOnCell.length}🏆)",
+                      style: const TextStyle(color: Color(0xFFF7D070), fontSize: 7),
+                    ),
+                ],
               ),
             )
-          else if (isSafe)
+          else if (isSouthHome)
             const Center(
-              child: Text(
-                "✕",
-                style: TextStyle(
-                  color: Color(0x66F7D070),
-                  fontSize: 26,
-                  fontWeight: FontWeight.w300,
-                  height: 1,
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("⚪", style: TextStyle(fontSize: 13, height: 1.0)),
+                  Text(
+                    "पांढरे खडे\nWHITE",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xCCFFFFFF),
+                      fontSize: 7.5,
+                      fontWeight: FontWeight.bold,
+                      height: 1.05,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (isWestHome)
+            const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("⚫", style: TextStyle(fontSize: 13, height: 1.0)),
+                  Text(
+                    "काळे खडे\nBLACK",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xCC2A9D8F),
+                      fontSize: 7.5,
+                      fontWeight: FontWeight.bold,
+                      height: 1.05,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (isNorthHome)
+            const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("🪵", style: TextStyle(fontSize: 13, height: 1.0)),
+                  Text(
+                    "काठ्या\nSTICKS",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xCCF4A261),
+                      fontSize: 7.5,
+                      fontWeight: FontWeight.bold,
+                      height: 1.05,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (isEastHome)
+            const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("🌰", style: TextStyle(fontSize: 13, height: 1.0)),
+                  Text(
+                    "चिंचोके\nSEEDS",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xCC3A86FF),
+                      fontSize: 7.5,
+                      fontWeight: FontWeight.bold,
+                      height: 1.05,
+                    ),
+                  ),
+                ],
               ),
             )
           else if (isPani)
@@ -179,13 +365,23 @@ class BoardWidget extends StatelessWidget {
                 "≈ पाणी ≈",
                 style: TextStyle(
                   color: Color(0x445CF0E2),
-                  fontSize: 9,
+                  fontSize: 8.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
 
-          // Render clustered pawns on cell
+          // Criss-cross sanctuary lines on safe squares
+          if (isSafe && !isCenter)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _SanctuaryCrossPainter(),
+                ),
+              ),
+            ),
+
+          // Render authentic White Stones, Black Stones, Sticks, Tamarind Seeds on this cell!
           if (pawnsOnCell.isNotEmpty)
             Center(
               child: Wrap(
@@ -193,7 +389,19 @@ class BoardWidget extends StatelessWidget {
                 runSpacing: 2,
                 alignment: WrapAlignment.center,
                 children: pawnsOnCell.map((info) {
-                  return _buildPawnWidget(info);
+                  final tokenSize = pawnsOnCell.length > 2
+                      ? (cellSize * 0.42).clamp(18.0, 24.0)
+                      : (cellSize * 0.52).clamp(22.0, 30.0);
+
+                  return PawnTokenWidget(
+                    player: info.player,
+                    pawn: info.pawn,
+                    isSelectable: info.isSelectable,
+                    size: tokenSize,
+                    onTap: info.isSelectable
+                        ? () => controller.movePawn(info.pawnIndex)
+                        : null,
+                  );
                 }).toList(),
               ),
             ),
@@ -202,49 +410,140 @@ class BoardWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildPawnWidget(_PawnInfo info) {
-    final size = info.isSelectable ? 26.0 : 22.0;
+  // 3. On-Board Toss Arena Display
+  Widget _buildOnBoardTossArena() {
+    final player = controller.currentPlayer;
+    final canRoll = !player.isAI &&
+        !controller.isRolling &&
+        !controller.isMovingPawn &&
+        !controller.waitingForPawnChoice &&
+        controller.winner == null;
 
-    return GestureDetector(
-      onTap: info.isSelectable
-          ? () => controller.movePawn(info.pawnIndex)
-          : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [
-              info.player.colorLight,
-              info.player.color,
-              info.player.colorDark,
-            ],
-          ),
-          border: Border.all(
-            color: info.isSelectable ? const Color(0xFFF7D070) : Colors.white,
-            width: info.isSelectable ? 2.5 : 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: info.isSelectable
-                  ? const Color(0xFFF7D070).withValues(alpha: 0.8)
-                  : Colors.black.withValues(alpha: 0.5),
-              blurRadius: info.isSelectable ? 8 : 4,
-              offset: const Offset(0, 2),
+    final theme = controller.theme;
+    final isStick = controller.diceType == DiceType.sticks;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.surfaceBg.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.cardBorder),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Casting Dish with the 4 Active White Stones / Black Stones / Sticks / Tamarind Seeds
+          Container(
+            height: isStick ? 84 : 70,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                colors: theme.tossDishBg,
+                radius: 0.95,
+              ),
+              borderRadius: BorderRadius.circular(isStick ? 16 : 36),
+              border: Border.all(color: theme.tossDishBorder, width: 2.5),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black87,
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            info.player.avatar,
-            style: TextStyle(fontSize: size * 0.45),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(4, (i) {
+                return TraditionalDiceWidget(
+                  type: controller.diceType,
+                  state: controller.shells[i],
+                  isRolling: controller.isRolling,
+                  size: isStick ? 50 : 44,
+                );
+              }),
+            ),
           ),
-        ),
+
+          const SizedBox(height: 6),
+
+          // Outcome Banner
+          if (controller.currentRoll != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6.0),
+              child: Text(
+                _getRollText(controller.currentRoll!),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: theme.accentGold,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+          // On-Board Roll Button
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: ElevatedButton(
+              onPressed: canRoll ? () => controller.rollCowries() : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.primaryButtonBg,
+                disabledBackgroundColor: Colors.grey.shade800,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(
+                    color: canRoll ? theme.accentGold : Colors.transparent,
+                    width: 1.2,
+                  ),
+                ),
+                elevation: canRoll ? 4 : 0,
+              ),
+              child: Text(
+                _getButtonText(player),
+                style: TextStyle(
+                  color: canRoll ? theme.primaryButtonTextColor : Colors.grey.shade400,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  String _getRollText(int roll) {
+    if (roll == 8) return "Rolled: 8 (चंपाळ / Champool!) 🌟 BONUS ROLL";
+    if (roll == 4) return "Rolled: 4 (चल्लास / Challas!) 🌟 BONUS ROLL";
+    return "Rolled: $roll";
+  }
+
+  String _getButtonText(Player player) {
+    if (controller.winner != null) return "Game Over";
+    if (player.isAI) return "🤖 ${player.name} is Playing...";
+    if (controller.isRolling) return "Tossing ${controller.diceType.shortName}...";
+    if (controller.waitingForPawnChoice) {
+      return "👆 Tap a Glowing Pawn (${controller.currentRoll})";
+    }
+    return "🎲 ${controller.diceType.rollActionText}";
+  }
+}
+
+class _SanctuaryCrossPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x33F7D070)
+      ..strokeWidth = 1.0;
+
+    canvas.drawLine(Offset.zero, Offset(size.width, size.height), paint);
+    canvas.drawLine(Offset(size.width, 0), Offset(0, size.height), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _PawnInfo {

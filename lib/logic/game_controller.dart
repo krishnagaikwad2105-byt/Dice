@@ -3,14 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/board_paths.dart';
 import '../models/player.dart';
+import '../models/dice_type.dart';
+import '../theme/game_theme.dart';
 
 class GameController extends ChangeNotifier {
   int numPlayers = 4;
   List<Player> players = [];
   int currentPlayerIdx = 0;
+  DiceType diceType = DiceType.whiteStone;
+  GameTheme theme = GameTheme.royalRajwada;
 
   int? currentRoll;
-  List<int> shells = [1, 0, 1, 0]; // 0=closed (flat), 1=open (mouth up)
+  List<int> shells = [1, 0, 1, 0]; // 0=closed (flat), 1=open (mouth/marked up)
   bool isRolling = false;
   bool isMovingPawn = false;
   bool waitingForPawnChoice = false;
@@ -22,6 +26,21 @@ class GameController extends ChangeNotifier {
 
   GameController() {
     startNewGame();
+  }
+
+  void setDiceType(DiceType type) {
+    diceType = type;
+    notifyListeners();
+  }
+
+  void setTheme(GameTheme newTheme) {
+    theme = newTheme;
+    notifyListeners();
+  }
+
+  void setThemeId(GameThemeId id) {
+    theme = GameTheme.getById(id);
+    notifyListeners();
   }
 
   Player get currentPlayer => players[currentPlayerIdx];

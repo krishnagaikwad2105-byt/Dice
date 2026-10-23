@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pawn.dart';
+import 'dice_type.dart';
 
 /// Represents a player in Champal Pani
 class Player {
@@ -12,6 +13,7 @@ class Player {
   final String avatar;
   final String side;
   final bool isAI;
+  final DiceType tokenType;
 
   bool hasPani; // Unlocked after capturing at least one enemy pawn
   int kills;
@@ -27,6 +29,7 @@ class Player {
     required this.avatar,
     required this.side,
     this.isAI = false,
+    this.tokenType = DiceType.whiteStone,
     this.hasPani = false,
     this.kills = 0,
     required this.pawns,
