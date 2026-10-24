@@ -1,11 +1,11 @@
 {
-    "name": "champal_pani",
-    "short_name": "champal_pani",
+    "name": "Champal Pani - चंपाळ पाणी",
+    "short_name": "Champal Pani",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F8FAFC",
+    "theme_color": "#4F46E5",
+    "description": "Authentic Maharashtrian Traditional 5x5 Board Game - Champal Pani / Champool",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

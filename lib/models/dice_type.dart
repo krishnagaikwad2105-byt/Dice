@@ -1,3 +1,5 @@
+import '../i18n/localization_service.dart';
+
 /// Types of traditional casting dice used in Maharashtrian board games
 enum DiceType {
   whiteStone,
@@ -38,6 +40,56 @@ extension DiceTypeExtension on DiceType {
     }
   }
 
+  String getLocalizedName(AppLanguage lang) {
+    switch (this) {
+      case DiceType.whiteStone:
+        switch (lang) {
+          case AppLanguage.hindi:
+            return "सफेद कंकड़";
+          case AppLanguage.marathi:
+            return "पांढरे खडे";
+          case AppLanguage.english:
+            return "White Stones";
+        }
+      case DiceType.blackStone:
+        switch (lang) {
+          case AppLanguage.hindi:
+            return "काले कंकड़";
+          case AppLanguage.marathi:
+            return "काळे खडे";
+          case AppLanguage.english:
+            return "Black Stones";
+        }
+      case DiceType.sticks:
+        switch (lang) {
+          case AppLanguage.hindi:
+            return "तीलियाँ";
+          case AppLanguage.marathi:
+            return "काठ्या";
+          case AppLanguage.english:
+            return "Sticks";
+        }
+      case DiceType.tamarindSeeds:
+        switch (lang) {
+          case AppLanguage.hindi:
+            return "चिंचोके";
+          case AppLanguage.marathi:
+            return "चिंचोके";
+          case AppLanguage.english:
+            return "Tamarind Seeds";
+        }
+      case DiceType.cowrieShells:
+        switch (lang) {
+          case AppLanguage.hindi:
+            return "कौड़ियां";
+          case AppLanguage.marathi:
+            return "कवड्या";
+          case AppLanguage.english:
+            return "Cowrie Shells";
+        }
+    }
+  }
+
   String get icon {
     switch (this) {
       case DiceType.whiteStone:
@@ -53,18 +105,19 @@ extension DiceTypeExtension on DiceType {
     }
   }
 
-  String get rollActionText {
-    switch (this) {
-      case DiceType.whiteStone:
-        return "Toss White Stones (खडे टाका)";
-      case DiceType.blackStone:
-        return "Toss Black Stones (खडे टाका)";
-      case DiceType.sticks:
-        return "Toss Sticks (काठ्या टाका)";
-      case DiceType.tamarindSeeds:
-        return "Toss Seeds (चिंचोके टाका)";
-      case DiceType.cowrieShells:
-        return "Roll Kavadis (कवड्या टाका)";
+  String getLocalizedRollAction(AppLanguage lang) {
+    final name = getLocalizedName(lang);
+    switch (lang) {
+      case AppLanguage.hindi:
+        return "$name फेंकें";
+      case AppLanguage.marathi:
+        return "$name टाका";
+      case AppLanguage.english:
+        return "Toss $name";
     }
+  }
+
+  String get rollActionText {
+    return getLocalizedRollAction(AppLanguage.english);
   }
 }

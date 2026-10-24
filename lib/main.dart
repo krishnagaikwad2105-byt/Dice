@@ -4,8 +4,11 @@ import 'widgets/board_widget.dart';
 import 'widgets/player_panel_widget.dart';
 import 'widgets/rules_dialog.dart';
 import 'theme/game_theme.dart';
+import 'i18n/localization_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await LocalizationService.instance.init();
   runApp(const ChampalPaniApp());
 }
 
@@ -14,29 +17,61 @@ class ChampalPaniApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'चंपाळ पाणी - Champal Pani',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF140408),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFE5A93C),
-          secondary: Color(0xFFE63946),
-          surface: Color(0xFF21060D),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF26060F),
-          elevation: 4,
-          iconTheme: IconThemeData(color: Color(0xFFF7D070)),
-          titleTextStyle: TextStyle(
-            color: Color(0xFFF7D070),
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+    return ListenableBuilder(
+      listenable: LocalizationService.instance,
+      builder: (context, _) {
+        final loc = LocalizationService.instance;
+
+        return MaterialApp(
+          title: '${loc.t('appName')} - ${loc.t('appSubtitle')}',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            useMaterial3: true,
+            brightness: Brightness.light,
+            scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF4F46E5),
+              brightness: Brightness.light,
+              primary: const Color(0xFF4F46E5),
+              surface: Colors.white,
+            ),
+            fontFamily: 'Roboto',
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.white,
+              elevation: 0.5,
+              scrolledUnderElevation: 1.0,
+              iconTheme: IconThemeData(color: Color(0xFF0F172A)),
+              titleTextStyle: TextStyle(
+                color: Color(0xFF0F172A),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
-        ),
-      ),
-      home: const GameScreen(),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            brightness: Brightness.dark,
+            scaffoldBackgroundColor: const Color(0xFF140408),
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFFE5A93C),
+              secondary: Color(0xFFE63946),
+              surface: Color(0xFF21060D),
+            ),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFF26060F),
+              elevation: 2,
+              iconTheme: IconThemeData(color: Color(0xFFF7D070)),
+              titleTextStyle: TextStyle(
+                color: Color(0xFFF7D070),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          themeMode: ThemeMode.light,
+          home: const GameScreen(),
+        );
+      },
     );
   }
 }
@@ -73,21 +108,29 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _showVictoryDialog() {
+    final theme = _controller.theme;
+    final loc = LocalizationService.instance;
+    final lang = loc.currentLanguage;
+    final winner = _controller.winner!;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        final winner = _controller.winner!;
         return AlertDialog(
-          backgroundColor: const Color(0xFF2B1408),
+          backgroundColor: theme.surfaceBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFD4AF37), width: 2),
+            side: BorderSide(color: theme.accentGold, width: 2),
           ),
-          title: const Center(
+          title: Center(
             child: Text(
-              "👑 विजयरथ! VICTORY! 👑",
-              style: TextStyle(color: Color(0xFFF7D070), fontWeight: FontWeight.bold),
+              "👑 ${loc.t('victoryTitle')} 👑",
+              style: TextStyle(
+                color: theme.accentGold,
+                fontWeight: FontWeight.bold,
+                fontSize: 19,
+              ),
             ),
           ),
           content: Column(
@@ -99,21 +142,40 @@ class _GameScreenState extends State<GameScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                "${winner.name} Won!",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
+                "${winner.getDisplayName(lang)} ${loc.t('wonTheGame')}",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: theme.textColor,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(height: 4),
               Text(
-                "${winner.side} Kingdom",
-                style: const TextStyle(color: Color(0xFFF7D070), fontSize: 13),
+                winner.getLocalizedSide(lang),
+                style: TextStyle(
+                  color: theme.accentGold,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 12),
-              Text(
-                "⚔️ ${winner.kills} Captures • All 4 Pawns in Swarga",
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: theme.isDark ? const Color(0x33000000) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: theme.cardBorder),
+                ),
+                child: Text(
+                  "⚔️ ${winner.kills} ${loc.t('kills')} • ${loc.t('allPawnsSwarga')}",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: theme.textSecondaryColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ],
           ),
@@ -121,18 +183,24 @@ class _GameScreenState extends State<GameScreen> {
             Center(
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  backgroundColor: theme.primaryButtonBg,
+                  foregroundColor: theme.primaryButtonTextColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 onPressed: () {
                   Navigator.of(context).pop();
                   _controller.startNewGame(
                     playerCount: _controller.numPlayers,
-                    vsAI: true,
+                    vsAI: _controller.isVsAI,
                   );
                 },
-                child: const Text("Play Again ⚔️", style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(
+                  "${loc.t('playAgain')} ⚔️",
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
               ),
             ),
           ],
@@ -143,7 +211,9 @@ class _GameScreenState extends State<GameScreen> {
 
   void _showNewGameDialog() {
     int selectedPlayers = _controller.numPlayers;
-    bool vsAI = true;
+    bool vsAI = _controller.isVsAI;
+    final theme = _controller.theme;
+    final loc = LocalizationService.instance;
 
     showDialog(
       context: context,
@@ -151,60 +221,129 @@ class _GameScreenState extends State<GameScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF241208),
+              backgroundColor: theme.surfaceBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: Color(0xFFD4AF37)),
+                side: BorderSide(color: theme.cardBorder),
               ),
-              title: const Text(
-                "⚔️ New Game Setup",
-                style: TextStyle(color: Color(0xFFF7D070)),
+              title: Row(
+                children: [
+                  const Text("⚔️ "),
+                  Text(
+                    loc.t('newGameSetup'),
+                    style: TextStyle(
+                      color: theme.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                    ),
+                  ),
+                ],
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Game Mode:", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                  const SizedBox(height: 4),
-                  DropdownButton<bool>(
-                    value: vsAI,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF2E170A),
-                    items: const [
-                      DropdownMenuItem(value: true, child: Text("You vs AI Bots 🤖")),
-                      DropdownMenuItem(value: false, child: Text("Pass & Play (Multiplayer) 👥")),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setDialogState(() => vsAI = val);
-                    },
+                  Text(
+                    loc.t('gameMode'),
+                    style: TextStyle(color: theme.textSecondaryColor, fontSize: 13, fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: 12),
-                  const Text("Number of Players:", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                  const SizedBox(height: 4),
-                  DropdownButton<int>(
-                    value: selectedPlayers,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF2E170A),
-                    items: const [
-                      DropdownMenuItem(value: 2, child: Text("2 Players (South vs North)")),
-                      DropdownMenuItem(value: 3, child: Text("3 Players")),
-                      DropdownMenuItem(value: 4, child: Text("4 Players (Full Board)")),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setDialogState(() => selectedPlayers = val);
-                    },
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: theme.isDark ? const Color(0x33FFFFFF) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: theme.cardBorder),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<bool>(
+                        value: vsAI,
+                        isExpanded: true,
+                        dropdownColor: theme.surfaceBg,
+                        items: [
+                          DropdownMenuItem(
+                            value: true,
+                            child: Text(
+                              "${loc.t('vsAI')} 🤖",
+                              style: TextStyle(color: theme.textColor, fontSize: 13),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: false,
+                            child: Text(
+                              "${loc.t('passAndPlay')} 👥",
+                              style: TextStyle(color: theme.textColor, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setDialogState(() => vsAI = val);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    loc.t('numberOfPlayers'),
+                    style: TextStyle(color: theme.textSecondaryColor, fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: theme.isDark ? const Color(0x33FFFFFF) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: theme.cardBorder),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: selectedPlayers,
+                        isExpanded: true,
+                        dropdownColor: theme.surfaceBg,
+                        items: [
+                          DropdownMenuItem(
+                            value: 2,
+                            child: Text(
+                              loc.t('twoPlayers'),
+                              style: TextStyle(color: theme.textColor, fontSize: 13),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 3,
+                            child: Text(
+                              loc.t('threePlayers'),
+                              style: TextStyle(color: theme.textColor, fontSize: 13),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 4,
+                            child: Text(
+                              loc.t('fourPlayers'),
+                              style: TextStyle(color: theme.textColor, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setDialogState(() => selectedPlayers = val);
+                        },
+                      ),
+                    ),
                   ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
+                  child: Text(
+                    loc.t('cancel'),
+                    style: TextStyle(color: theme.textSecondaryColor),
+                  ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE63946),
-                    foregroundColor: Colors.white,
+                    backgroundColor: theme.primaryButtonBg,
+                    foregroundColor: theme.primaryButtonTextColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () {
                     Navigator.of(ctx).pop();
@@ -213,7 +352,10 @@ class _GameScreenState extends State<GameScreen> {
                       vsAI: vsAI,
                     );
                   },
-                  child: const Text("Start Match 🎲"),
+                  child: Text(
+                    "${loc.t('startMatch')} 🎲",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             );
@@ -224,6 +366,9 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _showThemeSelectorDialog() {
+    final loc = LocalizationService.instance;
+    final lang = loc.currentLanguage;
+
     showDialog(
       context: context,
       builder: (ctx) {
@@ -235,15 +380,15 @@ class _GameScreenState extends State<GameScreen> {
               backgroundColor: activeTheme.surfaceBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: activeTheme.accentGold, width: 1.5),
+                side: BorderSide(color: activeTheme.cardBorder, width: 1.5),
               ),
               title: Row(
                 children: [
                   const Text("🎨 "),
                   Text(
-                    "थीम निवडा / Game Theme",
+                    loc.t('themeSelectorTitle'),
                     style: TextStyle(
-                      color: activeTheme.accentGold,
+                      color: activeTheme.textColor,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -258,36 +403,40 @@ class _GameScreenState extends State<GameScreen> {
                     children: GameTheme.allThemes.map((th) {
                       final isSelected = th.id == activeTheme.id;
 
+                      final itemBg = isSelected
+                          ? th.cardCurrentPlayerBg
+                          : (activeTheme.isDark ? th.boardBg.withValues(alpha: 0.5) : const Color(0xFFF8FAFC));
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? th.cardCurrentPlayerBg
-                              : th.boardBg.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isSelected ? th.accentGold : th.cardBorder,
+                            color: isSelected ? activeTheme.accentGold : activeTheme.cardBorder,
                             width: isSelected ? 2 : 1,
                           ),
                         ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          leading: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(colors: th.boardGradient),
-                              border: Border.all(color: th.boardBorder, width: 1.5),
+                        child: Material(
+                          color: itemBg,
+                          borderRadius: BorderRadius.circular(11),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            leading: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(colors: th.boardGradient),
+                                border: Border.all(color: th.boardBorder, width: 1.5),
+                              ),
+                              child: Center(
+                                child: Text(th.icon, style: const TextStyle(fontSize: 18)),
+                              ),
                             ),
-                            child: Center(
-                              child: Text(th.icon, style: const TextStyle(fontSize: 18)),
-                            ),
-                          ),
                           title: Text(
-                            "${th.name} (${th.marathiName})",
+                            th.getLocalizedName(lang),
                             style: TextStyle(
-                              color: isSelected ? th.accentGold : Colors.white,
+                              color: isSelected ? activeTheme.accentGold : activeTheme.textColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 13.5,
                             ),
@@ -297,7 +446,7 @@ class _GameScreenState extends State<GameScreen> {
                             children: [
                               Text(
                                 th.description,
-                                style: const TextStyle(color: Colors.white70, fontSize: 10.5),
+                                style: TextStyle(color: activeTheme.textSecondaryColor, fontSize: 10.5),
                               ),
                               const SizedBox(height: 5),
                               Row(
@@ -311,14 +460,15 @@ class _GameScreenState extends State<GameScreen> {
                             ],
                           ),
                           trailing: isSelected
-                              ? Icon(Icons.check_circle, color: th.accentGold)
+                              ? Icon(Icons.check_circle, color: activeTheme.accentGold)
                               : null,
                           onTap: () {
                             _controller.setTheme(th);
                             setDialogState(() {});
                           },
                         ),
-                      );
+                      ),
+                    );
                     }).toList(),
                   ),
                 ),
@@ -326,11 +476,15 @@ class _GameScreenState extends State<GameScreen> {
               actions: [
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: activeTheme.accentGold,
-                    foregroundColor: Colors.black,
+                    backgroundColor: activeTheme.primaryButtonBg,
+                    foregroundColor: activeTheme.primaryButtonTextColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text("Done / पूर्ण", style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    loc.t('done'),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             );
@@ -348,62 +502,166 @@ class _GameScreenState extends State<GameScreen> {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white24, width: 0.8),
+        border: Border.all(color: Colors.black12, width: 0.8),
       ),
+    );
+  }
+
+  Widget _buildLanguageSelector(GameTheme theme) {
+    final loc = LocalizationService.instance;
+    final currentLang = loc.currentLanguage;
+
+    return PopupMenuButton<AppLanguage>(
+      tooltip: loc.t('selectLanguage'),
+      initialValue: currentLang,
+      offset: const Offset(0, 42),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: theme.cardBorder),
+      ),
+      color: theme.surfaceBg,
+      icon: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: theme.isDark ? const Color(0x22FFFFFF) : const Color(0xFFEEF2FF),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.cardBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.language, size: 16),
+            const SizedBox(width: 4),
+            Text(
+              currentLang.nativeName,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: theme.textColor,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(Icons.arrow_drop_down, size: 16, color: theme.textSecondaryColor),
+          ],
+        ),
+      ),
+      onSelected: (AppLanguage lang) {
+        loc.setLanguage(lang);
+      },
+      itemBuilder: (context) {
+        return AppLanguage.values.map((lang) {
+          final isSelected = lang == currentLang;
+          return PopupMenuItem<AppLanguage>(
+            value: lang,
+            child: Row(
+              children: [
+                if (isSelected)
+                  Icon(Icons.check, size: 16, color: theme.accentGold)
+                else
+                  const SizedBox(width: 16),
+                const SizedBox(width: 8),
+                Text(
+                  lang.nativeName,
+                  style: TextStyle(
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? theme.accentGold : theme.textColor,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  "(${lang.englishName})",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: theme.textSecondaryColor,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList();
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _controller,
+      listenable: Listenable.merge([_controller, LocalizationService.instance]),
       builder: (context, _) {
         final screenWidth = MediaQuery.of(context).size.width;
         final isDesktop = screenWidth >= 900;
         final theme = _controller.theme;
+        final loc = LocalizationService.instance;
 
         return Scaffold(
           backgroundColor: theme.scaffoldBg,
           appBar: AppBar(
             backgroundColor: theme.appBarBg,
-            iconTheme: IconThemeData(color: theme.accentGold),
+            iconTheme: IconThemeData(color: theme.textColor),
+            elevation: theme.isDark ? 3 : 0.8,
             title: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(theme.icon),
-                const SizedBox(width: 6),
-                const Text("चंपाळ पाणी "),
-                Text(
-                  "CHAMPAL PANI",
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white.withValues(alpha: 0.7),
-                    letterSpacing: 1.5,
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    loc.t('appName'),
+                    style: TextStyle(
+                      color: theme.textColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (isDesktop) ...[
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      loc.t('appSubtitle'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
+                        color: theme.textSecondaryColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ],
             ),
             actions: [
+              // Language Selector (English, Hindi, Marathi)
+              _buildLanguageSelector(theme),
+              const SizedBox(width: 4),
+
+              // Theme Selector
               IconButton(
                 icon: const Icon(Icons.palette_outlined),
-                tooltip: "Change Theme (थीम बदला)",
+                tooltip: loc.t('changeTheme'),
                 onPressed: _showThemeSelectorDialog,
               ),
+
+              // Rules
               IconButton(
                 icon: const Icon(Icons.menu_book),
-                tooltip: "Rules & History",
+                tooltip: loc.t('rulesAndGuide'),
                 onPressed: () {
                   showDialog(
                     context: context,
-                    builder: (_) => const RulesDialog(),
+                    builder: (_) => RulesDialog(theme: theme),
                   );
                 },
               ),
+
+              // New Game
               IconButton(
                 icon: const Icon(Icons.refresh),
-                tooltip: "New Game",
+                tooltip: loc.t('newGame'),
                 onPressed: _showNewGameDialog,
               ),
+              const SizedBox(width: 6),
             ],
           ),
           body: SafeArea(
@@ -414,21 +672,21 @@ class _GameScreenState extends State<GameScreen> {
               : BottomNavigationBar(
                   backgroundColor: theme.surfaceBg,
                   selectedItemColor: theme.accentGold,
-                  unselectedItemColor: Colors.white38,
+                  unselectedItemColor: theme.textSecondaryColor.withValues(alpha: 0.6),
                   currentIndex: _selectedMobileTab,
                   onTap: (idx) => setState(() => _selectedMobileTab = idx),
-                  items: const [
+                  items: [
                     BottomNavigationBarItem(
-                      icon: Icon(Icons.grid_view),
-                      label: "Board & Toss",
+                      icon: const Icon(Icons.grid_view),
+                      label: loc.t('boardAndToss'),
                     ),
                     BottomNavigationBarItem(
-                      icon: Icon(Icons.shield),
-                      label: "Kingdoms",
+                      icon: const Icon(Icons.shield),
+                      label: loc.t('kingdoms'),
                     ),
                     BottomNavigationBarItem(
-                      icon: Icon(Icons.history_edu),
-                      label: "Chronicle",
+                      icon: const Icon(Icons.history_edu),
+                      label: loc.t('chronicle'),
                     ),
                   ],
                 ),
@@ -439,6 +697,9 @@ class _GameScreenState extends State<GameScreen> {
 
   // Desktop / Tablet 3-Column Layout
   Widget _buildDesktopLayout() {
+    final theme = _controller.theme;
+    final loc = LocalizationService.instance;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
@@ -450,10 +711,10 @@ class _GameScreenState extends State<GameScreen> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  const Text(
-                    "👑 Kingdoms & Pawns",
+                  Text(
+                    "👑 ${loc.t('kingdoms')}",
                     style: TextStyle(
-                      color: Color(0xFFF7D070),
+                      color: theme.accentGold,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
@@ -487,10 +748,10 @@ class _GameScreenState extends State<GameScreen> {
               children: [
                 _buildTraditionalPiecesGuide(),
                 const SizedBox(height: 10),
-                const Text(
-                  "📜 Live Chronicle",
+                Text(
+                  "📜 ${loc.t('liveChronicle')}",
                   style: TextStyle(
-                    color: Color(0xFFF7D070),
+                    color: theme.accentGold,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
@@ -509,6 +770,9 @@ class _GameScreenState extends State<GameScreen> {
 
   // Mobile Single Column / Tabbed Layout
   Widget _buildMobileLayout() {
+    final theme = _controller.theme;
+    final loc = LocalizationService.instance;
+
     switch (_selectedMobileTab) {
       case 1:
         // Kingdoms Tab
@@ -516,10 +780,10 @@ class _GameScreenState extends State<GameScreen> {
           padding: const EdgeInsets.all(12),
           child: Column(
             children: [
-              const Text(
-                "👑 Kingdoms & Status",
+              Text(
+                "👑 ${loc.t('kingdoms')}",
                 style: TextStyle(
-                  color: Color(0xFFF7D070),
+                  color: theme.accentGold,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -537,10 +801,10 @@ class _GameScreenState extends State<GameScreen> {
             children: [
               _buildTraditionalPiecesGuide(),
               const SizedBox(height: 10),
-              const Text(
-                "📜 Game History",
+              Text(
+                "📜 ${loc.t('gameHistory')}",
                 style: TextStyle(
-                  color: Color(0xFFF7D070),
+                  color: theme.accentGold,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -567,11 +831,12 @@ class _GameScreenState extends State<GameScreen> {
 
   Widget _buildTraditionalPiecesGuide() {
     final theme = _controller.theme;
+    final loc = LocalizationService.instance;
 
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: theme.surfaceBg.withValues(alpha: 0.95),
+        color: theme.surfaceBg.withValues(alpha: theme.isDark ? 0.95 : 1.0),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.cardBorder),
       ),
@@ -582,28 +847,25 @@ class _GameScreenState extends State<GameScreen> {
             children: [
               Text(theme.icon, style: const TextStyle(fontSize: 14)),
               const SizedBox(width: 5),
-              Text(
-                "पारंपारिक फासे व सोंगट्या",
-                style: TextStyle(
-                  color: theme.accentGold,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  loc.t('scoringGuideTitle'),
+                  style: TextStyle(
+                    color: theme.accentGold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
-            "• ⚪ पांढरे खडे: Ivory river stones\n"
-            "• ⚫ काळे खडे: Obsidian basalt stones\n"
-            "• 🪵 काठ्या: Carved daayam sticks\n"
-            "• 🌰 चिंचोके: Split tamarind seeds\n"
-            "• 🌟 ८ = चंपाळ (Champal) Bonus Roll!\n"
-            "• 🌟 ४ = चल्लास (Challas) Bonus Roll!",
+          Text(
+            loc.t('scoringGuideContent'),
             style: TextStyle(
-              color: Colors.white70,
+              color: theme.textColor.withValues(alpha: 0.8),
               fontSize: 11,
-              height: 1.35,
+              height: 1.38,
             ),
           ),
         ],
@@ -614,14 +876,23 @@ class _GameScreenState extends State<GameScreen> {
   Widget _buildTurnBanner() {
     final player = _controller.currentPlayer;
     final theme = _controller.theme;
+    final loc = LocalizationService.instance;
+    final lang = loc.currentLanguage;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: theme.surfaceBg.withValues(alpha: 0.95),
+        color: theme.surfaceBg.withValues(alpha: theme.isDark ? 0.95 : 1.0),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: player.color.withValues(alpha: 0.7), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: theme.isDark ? 0.4 : 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -643,20 +914,20 @@ class _GameScreenState extends State<GameScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  player.name,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  player.getDisplayName(lang),
+                  style: TextStyle(
+                    color: theme.textColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
                 ),
                 Text(
                   player.isAI
-                      ? "🤖 Thinking..."
+                      ? "🤖 ${loc.t('botThinking')}"
                       : (_controller.waitingForPawnChoice
-                          ? "👉 Select a glowing pawn"
-                          : "🎲 Your turn to roll"),
-                  style: TextStyle(color: theme.accentGold, fontSize: 11),
+                          ? "👉 ${loc.t('turnSelectPawn')}"
+                          : "🎲 ${loc.t('turnRoll')}"),
+                  style: TextStyle(color: theme.accentGold, fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -668,22 +939,28 @@ class _GameScreenState extends State<GameScreen> {
 
   Widget _buildLogView() {
     final theme = _controller.theme;
+    final loc = LocalizationService.instance;
+    final lang = loc.currentLanguage;
 
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: theme.surfaceBg.withValues(alpha: 0.92),
+        color: theme.surfaceBg.withValues(alpha: theme.isDark ? 0.92 : 1.0),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: theme.cardBorder),
       ),
       child: ListView.builder(
         itemCount: _controller.logs.length,
         itemBuilder: (context, i) {
+          final logEntry = _controller.logs[i];
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 3.0),
             child: Text(
-              _controller.logs[i],
-              style: const TextStyle(color: Colors.white70, fontSize: 11.5),
+              logEntry.getLocalized(lang),
+              style: TextStyle(
+                color: theme.textColor.withValues(alpha: 0.8),
+                fontSize: 11.5,
+              ),
             ),
           );
         },

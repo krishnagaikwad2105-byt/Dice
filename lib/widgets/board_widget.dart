@@ -4,6 +4,7 @@ import '../models/board_paths.dart';
 import '../models/player.dart';
 import '../models/pawn.dart';
 import '../models/dice_type.dart';
+import '../i18n/localization_service.dart';
 import 'traditional_dice_widget.dart';
 import 'pawn_token_widget.dart';
 
@@ -30,8 +31,8 @@ class BoardWidget extends StatelessWidget {
           width: targetW,
           decoration: BoxDecoration(
             color: theme.boardBg,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: theme.boardBorder, width: 3.5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: theme.boardBorder, width: theme.isDark ? 3.0 : 1.5),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -39,14 +40,15 @@ class BoardWidget extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.8),
-                blurRadius: 25,
-                offset: const Offset(0, 12),
+                color: Colors.black.withValues(alpha: theme.isDark ? 0.6 : 0.08),
+                blurRadius: theme.isDark ? 20 : 12,
+                offset: const Offset(0, 6),
               ),
-              BoxShadow(
-                color: theme.boardGlow.withValues(alpha: 0.25),
-                blurRadius: 22,
-              ),
+              if (theme.isDark)
+                BoxShadow(
+                  color: theme.boardGlow.withValues(alpha: 0.25),
+                  blurRadius: 18,
+                ),
             ],
           ),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -54,7 +56,7 @@ class BoardWidget extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               // 1. ON-BOARD DICE / TOKEN TYPE SELECTOR
-              _buildOnBoardDiceSelector(),
+              _buildOnBoardDiceSelector(context),
 
               const SizedBox(height: 6),
 
@@ -82,8 +84,8 @@ class BoardWidget extends StatelessWidget {
 
               const SizedBox(height: 8),
 
-              // 3. ON-BOARD TOSS ARENA (Displaying White Stones, Black Stones, Sticks, Tamarind Seeds on board)
-              _buildOnBoardTossArena(),
+              // 3. ON-BOARD TOSS ARENA
+              _buildOnBoardTossArena(context),
             ],
           ),
         );
@@ -91,33 +93,37 @@ class BoardWidget extends StatelessWidget {
     );
   }
 
-  // 1. On-Board Selector for the 4 Traditional Types (+ Cowrie)
-  Widget _buildOnBoardDiceSelector() {
+  // 1. On-Board Selector for the Traditional Types (+ Cowrie)
+  Widget _buildOnBoardDiceSelector(BuildContext context) {
+    final theme = controller.theme;
+    final loc = LocalizationService.instance;
+    final lang = loc.currentLanguage;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0x99120702),
+        color: theme.isDark ? const Color(0x99120702) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x33D4AF37)),
+        border: Border.all(color: theme.cardBorder),
       ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                "⚔️ सोंगटी व फासे / PIECES: ",
+              Text(
+                "⚔️ ${loc.t('piecesAndCasting').toUpperCase()}: ",
                 style: TextStyle(
-                  color: Color(0xFFF7D070),
+                  color: theme.accentGold,
                   fontSize: 10.5,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 0.6,
+                  letterSpacing: 0.5,
                 ),
               ),
               Text(
-                controller.diceType.shortName,
-                style: const TextStyle(
-                  color: Colors.white,
+                controller.diceType.getLocalizedName(lang),
+                style: TextStyle(
+                  color: theme.textColor,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -138,20 +144,20 @@ class BoardWidget extends StatelessWidget {
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
                     label: Text(
-                      "${type.icon} ${type.shortName}",
+                      "${type.icon} ${type.getLocalizedName(lang)}",
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? Colors.black : Colors.white70,
+                        color: isSelected
+                            ? (theme.isDark ? Colors.black : Colors.white)
+                            : theme.textColor.withValues(alpha: 0.75),
                       ),
                     ),
                     selected: isSelected,
-                    selectedColor: const Color(0xFFF7D070),
-                    backgroundColor: const Color(0xFF261206),
+                    selectedColor: theme.accentGold,
+                    backgroundColor: theme.isDark ? const Color(0xFF261206) : Colors.white,
                     side: BorderSide(
-                      color: isSelected
-                          ? const Color(0xFFF7D070)
-                          : const Color(0x33D4AF37),
+                      color: isSelected ? theme.accentGold : theme.cardBorder,
                     ),
                     onSelected: (selected) {
                       if (selected) {
@@ -192,7 +198,8 @@ class BoardWidget extends StatelessWidget {
         if (pawn.isHome) {
           pawnCoord = const BoardCoord(2, 2);
         } else {
-          pawnCoord = BoardPaths.playerPaths[pIdx][pawn.stepIndex];
+          // Use player.pathIndex to correctly reflect North, West, East or South path
+          pawnCoord = BoardPaths.playerPaths[player.pathIndex][pawn.stepIndex];
         }
 
         if (pawnCoord == coord) {
@@ -212,6 +219,8 @@ class BoardWidget extends StatelessWidget {
     }
 
     final theme = controller.theme;
+    final loc = LocalizationService.instance;
+
     BoxDecoration decoration;
 
     if (isCenter) {
@@ -236,7 +245,7 @@ class BoardWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: safeBorder.withValues(alpha: 0.85), width: 1.8),
         gradient: RadialGradient(
-          colors: [safeBorder.withValues(alpha: 0.32), theme.cellDefaultBg],
+          colors: [safeBorder.withValues(alpha: theme.isDark ? 0.32 : 0.15), theme.cellDefaultBg],
           radius: 0.85,
         ),
       );
@@ -265,12 +274,12 @@ class BoardWidget extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text("⚜️", style: TextStyle(fontSize: 10)),
-                  const Text(
-                    "स्वर्ग\nHOME",
+                  Text(
+                    loc.t('swargaHome'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Color(0xFFF7D070),
-                      fontSize: 8.5,
+                      color: theme.isDark ? const Color(0xFFF7D070) : const Color(0xFFB45309),
+                      fontSize: 8.0,
                       fontWeight: FontWeight.bold,
                       height: 1.05,
                     ),
@@ -278,93 +287,104 @@ class BoardWidget extends StatelessWidget {
                   if (pawnsOnCell.isNotEmpty)
                     Text(
                       "(${pawnsOnCell.length}🏆)",
-                      style: const TextStyle(color: Color(0xFFF7D070), fontSize: 7),
+                      style: TextStyle(
+                        color: theme.isDark ? const Color(0xFFF7D070) : const Color(0xFFB45309),
+                        fontSize: 7,
+                      ),
                     ),
                 ],
               ),
             )
           else if (isSouthHome)
-            const Center(
+            Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("⚪", style: TextStyle(fontSize: 13, height: 1.0)),
+                  const Text("⚪", style: TextStyle(fontSize: 12, height: 1.0)),
                   Text(
-                    "पांढरे खडे\nWHITE",
+                    loc.t('whiteStone'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Color(0xCCFFFFFF),
-                      fontSize: 7.5,
+                      color: theme.isDark ? const Color(0xCCFFFFFF) : const Color(0xFF475569),
+                      fontSize: 7.0,
                       fontWeight: FontWeight.bold,
                       height: 1.05,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             )
           else if (isWestHome)
-            const Center(
+            Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("⚫", style: TextStyle(fontSize: 13, height: 1.0)),
+                  const Text("⚫", style: TextStyle(fontSize: 12, height: 1.0)),
                   Text(
-                    "काळे खडे\nBLACK",
+                    loc.t('blackStone'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xCC2A9D8F),
-                      fontSize: 7.5,
+                    style: const TextStyle(
+                      color: Color(0xFF2A9D8F),
+                      fontSize: 7.0,
                       fontWeight: FontWeight.bold,
                       height: 1.05,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             )
           else if (isNorthHome)
-            const Center(
+            Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("🪵", style: TextStyle(fontSize: 13, height: 1.0)),
+                  const Text("🪵", style: TextStyle(fontSize: 12, height: 1.0)),
                   Text(
-                    "काठ्या\nSTICKS",
+                    loc.t('sticks'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xCCF4A261),
-                      fontSize: 7.5,
+                    style: const TextStyle(
+                      color: Color(0xFFE76F51),
+                      fontSize: 7.0,
                       fontWeight: FontWeight.bold,
                       height: 1.05,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             )
           else if (isEastHome)
-            const Center(
+            Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("🌰", style: TextStyle(fontSize: 13, height: 1.0)),
+                  const Text("🌰", style: TextStyle(fontSize: 12, height: 1.0)),
                   Text(
-                    "चिंचोके\nSEEDS",
+                    loc.t('tamarindSeeds'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xCC3A86FF),
-                      fontSize: 7.5,
+                    style: const TextStyle(
+                      color: Color(0xFF3A86FF),
+                      fontSize: 7.0,
                       fontWeight: FontWeight.bold,
                       height: 1.05,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             )
           else if (isPani)
-            const Center(
+            Center(
               child: Text(
-                "≈ पाणी ≈",
+                loc.t('paniStream'),
                 style: TextStyle(
-                  color: Color(0x445CF0E2),
+                  color: theme.cellPaniTextColor.withValues(alpha: theme.isDark ? 0.6 : 0.8),
                   fontSize: 8.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -376,7 +396,9 @@ class BoardWidget extends StatelessWidget {
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
-                  painter: _SanctuaryCrossPainter(),
+                  painter: _SanctuaryCrossPainter(
+                    color: theme.isDark ? const Color(0x33F7D070) : const Color(0x33000000),
+                  ),
                 ),
               ),
             ),
@@ -411,7 +433,7 @@ class BoardWidget extends StatelessWidget {
   }
 
   // 3. On-Board Toss Arena Display
-  Widget _buildOnBoardTossArena() {
+  Widget _buildOnBoardTossArena(BuildContext context) {
     final player = controller.currentPlayer;
     final canRoll = !player.isAI &&
         !controller.isRolling &&
@@ -420,19 +442,21 @@ class BoardWidget extends StatelessWidget {
         controller.winner == null;
 
     final theme = controller.theme;
+    final loc = LocalizationService.instance;
+    final lang = loc.currentLanguage;
     final isStick = controller.diceType == DiceType.sticks;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: theme.surfaceBg.withValues(alpha: 0.92),
+        color: theme.surfaceBg.withValues(alpha: theme.isDark ? 0.92 : 0.98),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: theme.cardBorder),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Casting Dish with the 4 Active White Stones / Black Stones / Sticks / Tamarind Seeds
+          // Casting Dish with the 4 Active Cast Pieces
           Container(
             height: isStick ? 84 : 70,
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -442,12 +466,12 @@ class BoardWidget extends StatelessWidget {
                 radius: 0.95,
               ),
               borderRadius: BorderRadius.circular(isStick ? 16 : 36),
-              border: Border.all(color: theme.tossDishBorder, width: 2.5),
-              boxShadow: const [
+              border: Border.all(color: theme.tossDishBorder, width: theme.isDark ? 2.5 : 1.5),
+              boxShadow: [
                 BoxShadow(
-                  color: Colors.black87,
+                  color: Colors.black.withValues(alpha: theme.isDark ? 0.6 : 0.06),
                   blurRadius: 8,
-                  offset: Offset(0, 3),
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -471,7 +495,7 @@ class BoardWidget extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 6.0),
               child: Text(
-                _getRollText(controller.currentRoll!),
+                _getRollText(controller.currentRoll!, loc),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: theme.accentGold,
@@ -489,7 +513,7 @@ class BoardWidget extends StatelessWidget {
               onPressed: canRoll ? () => controller.rollCowries() : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.primaryButtonBg,
-                disabledBackgroundColor: Colors.grey.shade800,
+                disabledBackgroundColor: theme.isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                   side: BorderSide(
@@ -497,12 +521,12 @@ class BoardWidget extends StatelessWidget {
                     width: 1.2,
                   ),
                 ),
-                elevation: canRoll ? 4 : 0,
+                elevation: canRoll ? (theme.isDark ? 4 : 2) : 0,
               ),
               child: Text(
-                _getButtonText(player),
+                _getButtonText(player, loc, lang),
                 style: TextStyle(
-                  color: canRoll ? theme.primaryButtonTextColor : Colors.grey.shade400,
+                  color: canRoll ? theme.primaryButtonTextColor : (theme.isDark ? Colors.grey.shade400 : const Color(0xFF94A3B8)),
                   fontSize: 13.5,
                   fontWeight: FontWeight.bold,
                 ),
@@ -514,28 +538,32 @@ class BoardWidget extends StatelessWidget {
     );
   }
 
-  String _getRollText(int roll) {
-    if (roll == 8) return "Rolled: 8 (चंपाळ / Champool!) 🌟 BONUS ROLL";
-    if (roll == 4) return "Rolled: 4 (चल्लास / Challas!) 🌟 BONUS ROLL";
-    return "Rolled: $roll";
+  String _getRollText(int roll, LocalizationService loc) {
+    if (roll == 8) return loc.t('champalBonus');
+    if (roll == 4) return loc.t('challasBonus');
+    return "${loc.t('rolled')}: $roll";
   }
 
-  String _getButtonText(Player player) {
-    if (controller.winner != null) return "Game Over";
-    if (player.isAI) return "🤖 ${player.name} is Playing...";
-    if (controller.isRolling) return "Tossing ${controller.diceType.shortName}...";
+  String _getButtonText(Player player, LocalizationService loc, AppLanguage lang) {
+    if (controller.winner != null) return loc.t('gameOver');
+    if (player.isAI) return "🤖 ${player.getDisplayName(lang)} ${loc.t('botThinking')}";
+    if (controller.isRolling) return loc.t('tossingAction');
     if (controller.waitingForPawnChoice) {
-      return "👆 Tap a Glowing Pawn (${controller.currentRoll})";
+      return "👆 ${loc.t('tapPawnPrompt')} (${controller.currentRoll})";
     }
-    return "🎲 ${controller.diceType.rollActionText}";
+    return "🎲 ${controller.diceType.getLocalizedRollAction(lang)}";
   }
 }
 
 class _SanctuaryCrossPainter extends CustomPainter {
+  final Color color;
+
+  const _SanctuaryCrossPainter({required this.color});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0x33F7D070)
+      ..color = color
       ..strokeWidth = 1.0;
 
     canvas.drawLine(Offset.zero, Offset(size.width, size.height), paint);
@@ -543,7 +571,8 @@ class _SanctuaryCrossPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SanctuaryCrossPainter oldDelegate) =>
+      color != oldDelegate.color;
 }
 
 class _PawnInfo {

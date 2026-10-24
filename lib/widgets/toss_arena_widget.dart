@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../logic/game_controller.dart';
 import '../models/dice_type.dart';
+import '../models/player.dart';
+import '../i18n/localization_service.dart';
 import 'traditional_dice_widget.dart';
 
 class TossArenaWidget extends StatelessWidget {
@@ -17,17 +19,20 @@ class TossArenaWidget extends StatelessWidget {
         !controller.waitingForPawnChoice &&
         controller.winner == null;
 
+    final theme = controller.theme;
+    final loc = LocalizationService.instance;
+    final lang = loc.currentLanguage;
     final isStick = controller.diceType == DiceType.sticks;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xCC1C1009),
+        color: theme.surfaceBg.withValues(alpha: theme.isDark ? 0.92 : 0.98),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x44D4AF37)),
+        border: Border.all(color: theme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.6),
+            color: Colors.black.withValues(alpha: theme.isDark ? 0.6 : 0.06),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -47,18 +52,20 @@ class TossArenaWidget extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 6.0),
                   child: ChoiceChip(
                     label: Text(
-                      "${type.icon} ${type.shortName}",
+                      "${type.icon} ${type.getLocalizedName(lang)}",
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? Colors.black : Colors.white70,
+                        color: isSelected
+                            ? (theme.isDark ? Colors.black : Colors.white)
+                            : theme.textColor.withValues(alpha: 0.7),
                       ),
                     ),
                     selected: isSelected,
-                    selectedColor: const Color(0xFFF7D070),
-                    backgroundColor: const Color(0xFF2B1408),
+                    selectedColor: theme.accentGold,
+                    backgroundColor: theme.isDark ? const Color(0xFF2B1408) : Colors.white,
                     side: BorderSide(
-                      color: isSelected ? const Color(0xFFF7D070) : const Color(0x44D4AF37),
+                      color: isSelected ? theme.accentGold : theme.cardBorder,
                     ),
                     visualDensity: VisualDensity.compact,
                     onSelected: (selected) {
@@ -79,17 +86,17 @@ class TossArenaWidget extends StatelessWidget {
             height: isStick ? 96 : 82,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              gradient: const RadialGradient(
-                colors: [Color(0xFF1B3D2F), Color(0xFF0D1E17), Color(0xFF3D2812)],
+              gradient: RadialGradient(
+                colors: theme.tossDishBg,
                 radius: 0.9,
               ),
               borderRadius: BorderRadius.circular(isStick ? 20 : 40),
-              border: Border.all(color: const Color(0xFF916828), width: 3),
-              boxShadow: const [
+              border: Border.all(color: theme.tossDishBorder, width: theme.isDark ? 3 : 1.5),
+              boxShadow: [
                 BoxShadow(
-                  color: Colors.black87,
+                  color: Colors.black.withValues(alpha: theme.isDark ? 0.8 : 0.08),
                   blurRadius: 10,
-                  offset: Offset(0, 4),
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -113,9 +120,9 @@ class TossArenaWidget extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: Text(
-                _getRollText(controller.currentRoll!),
-                style: const TextStyle(
-                  color: Color(0xFFF7D070),
+                _getRollText(controller.currentRoll!, loc),
+                style: TextStyle(
+                  color: theme.accentGold,
                   fontSize: 14.5,
                   fontWeight: FontWeight.bold,
                 ),
@@ -129,21 +136,21 @@ class TossArenaWidget extends StatelessWidget {
             child: ElevatedButton(
               onPressed: canRoll ? () => controller.rollCowries() : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD4AF37),
-                disabledBackgroundColor: Colors.grey.shade800,
+                backgroundColor: theme.primaryButtonBg,
+                disabledBackgroundColor: theme.isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                   side: BorderSide(
-                    color: canRoll ? const Color(0xFFFFF5CC) : Colors.transparent,
+                    color: canRoll ? theme.accentGold : Colors.transparent,
                     width: 1.5,
                   ),
                 ),
                 elevation: canRoll ? 4 : 0,
               ),
               child: Text(
-                _getButtonText(player),
+                _getButtonText(player, loc, lang),
                 style: TextStyle(
-                  color: canRoll ? const Color(0xFF1A0E05) : Colors.grey.shade400,
+                  color: canRoll ? theme.primaryButtonTextColor : (theme.isDark ? Colors.grey.shade400 : const Color(0xFF94A3B8)),
                   fontSize: 14.5,
                   fontWeight: FontWeight.bold,
                 ),
@@ -155,17 +162,17 @@ class TossArenaWidget extends StatelessWidget {
     );
   }
 
-  String _getRollText(int roll) {
-    if (roll == 8) return "Rolled: 8 (चंपाळ / Champool!) 🌟 BONUS ROLL";
-    if (roll == 4) return "Rolled: 4 🌟 BONUS ROLL";
-    return "Rolled: $roll";
+  String _getRollText(int roll, LocalizationService loc) {
+    if (roll == 8) return loc.t('champalBonus');
+    if (roll == 4) return loc.t('challasBonus');
+    return "${loc.t('rolled')}: $roll";
   }
 
-  String _getButtonText(player) {
-    if (controller.winner != null) return "Game Over";
-    if (player.isAI) return "🤖 AI is Playing...";
-    if (controller.isRolling) return "Tossing ${controller.diceType.shortName}...";
-    if (controller.waitingForPawnChoice) return "Tap a Glowing Pawn (${controller.currentRoll})";
-    return "🎲 ${controller.diceType.rollActionText}";
+  String _getButtonText(Player player, LocalizationService loc, AppLanguage lang) {
+    if (controller.winner != null) return loc.t('gameOver');
+    if (player.isAI) return "🤖 ${player.getDisplayName(lang)} ${loc.t('botThinking')}";
+    if (controller.isRolling) return loc.t('tossingAction');
+    if (controller.waitingForPawnChoice) return "👆 ${loc.t('tapPawnPrompt')} (${controller.currentRoll})";
+    return "🎲 ${controller.diceType.getLocalizedRollAction(lang)}";
   }
 }

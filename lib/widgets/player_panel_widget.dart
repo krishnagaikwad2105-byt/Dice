@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../logic/game_controller.dart';
 import '../models/player.dart';
+import '../i18n/localization_service.dart';
 
 class PlayerPanelWidget extends StatelessWidget {
   final GameController controller;
@@ -16,51 +17,65 @@ class PlayerPanelWidget extends StatelessWidget {
         final player = entry.value;
         final isCurrent = idx == controller.currentPlayerIdx;
 
-        return _buildPlayerCard(player, isCurrent);
+        return _buildPlayerCard(context, player, isCurrent);
       }).toList(),
     );
   }
 
-  Widget _buildPlayerCard(Player player, bool isCurrent) {
+  Widget _buildPlayerCard(BuildContext context, Player player, bool isCurrent) {
+    final theme = controller.theme;
+    final loc = LocalizationService.instance;
+    final lang = loc.currentLanguage;
+
+    final cardBg = isCurrent
+        ? theme.cardCurrentPlayerBg
+        : theme.surfaceBg;
+
+    final borderColor = isCurrent ? player.color : theme.cardBorder;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: isCurrent
-            ? controller.theme.cardCurrentPlayerBg
-            : controller.theme.surfaceBg.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(10),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isCurrent ? player.color : Colors.white10,
+          color: borderColor,
           width: isCurrent ? 2 : 1,
         ),
-        boxShadow: isCurrent
-            ? [
-                BoxShadow(
-                  color: player.color.withValues(alpha: 0.35),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                )
-              ]
-            : null,
+        boxShadow: [
+          BoxShadow(
+            color: isCurrent
+                ? player.color.withValues(alpha: 0.22)
+                : Colors.black.withValues(alpha: 0.04),
+            blurRadius: isCurrent ? 8 : 3,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Row(
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: player.color,
                   border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: player.color.withValues(alpha: 0.35),
+                      blurRadius: 4,
+                    ),
+                  ],
                 ),
                 child: Center(
                   child: Text(
                     player.avatar,
-                    style: const TextStyle(fontSize: 14),
+                    style: const TextStyle(fontSize: 15),
                   ),
                 ),
               ),
@@ -70,57 +85,64 @@ class PlayerPanelWidget extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      player.name,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      player.getDisplayName(lang),
+                      style: TextStyle(
+                        color: theme.textColor,
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      "${player.isAI ? '🤖 Bot' : '👤 You'} • ${player.side}",
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 10,
+                      "${player.isAI ? '🤖 ${loc.t("bot")}' : '👤 ${loc.t("you")}'} • ${player.getLocalizedSide(lang)}",
+                      style: TextStyle(
+                        color: theme.textSecondaryColor,
+                        fontSize: 11,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: player.hasPani
-                      ? const Color(0x332EC4B6)
-                      : const Color(0x22FFFFFF),
+                      ? (theme.isDark ? const Color(0x332EC4B6) : const Color(0xFFDCFCE7))
+                      : (theme.isDark ? const Color(0x22FFFFFF) : const Color(0xFFF1F5F9)),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: player.hasPani
-                        ? const Color(0xFF2EC4B6)
-                        : Colors.white24,
+                        ? (theme.isDark ? const Color(0xFF2EC4B6) : const Color(0xFF22C55E))
+                        : theme.cardBorder,
                   ),
                 ),
                 child: Text(
-                  player.hasPani ? "🌊 PANI" : "🔒 NO PANI",
+                  player.hasPani ? "🌊 ${loc.t('paniUnlocked')}" : "🔒 ${loc.t('noPani')}",
                   style: TextStyle(
                     color: player.hasPani
-                        ? const Color(0xFF5CF0E2)
-                        : Colors.white54,
-                    fontSize: 9,
+                        ? (theme.isDark ? const Color(0xFF5CF0E2) : const Color(0xFF15803D))
+                        : theme.textSecondaryColor,
+                    fontSize: 9.0,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildStatPill("⚔️", "${player.kills}", "Kills"),
-              _buildStatPill("🏠", "${player.baseCount}", "Base"),
-              _buildStatPill("🚶", "${player.fieldCount}", "Field"),
-              _buildStatPill("🏆", "${player.homeCount}/4", "Home", isHighlight: true),
+              Expanded(child: _buildStatPill("⚔️", "${player.kills}", loc.t('kills'))),
+              const SizedBox(width: 4),
+              Expanded(child: _buildStatPill("🏠", "${player.baseCount}", loc.t('base'))),
+              const SizedBox(width: 4),
+              Expanded(child: _buildStatPill("🚶", "${player.fieldCount}", loc.t('field'))),
+              const SizedBox(width: 4),
+              Expanded(child: _buildStatPill("🏆", "${player.homeCount}/4", loc.t('home'), isHighlight: true)),
             ],
           ),
         ],
@@ -129,27 +151,48 @@ class PlayerPanelWidget extends StatelessWidget {
   }
 
   Widget _buildStatPill(String icon, String val, String label, {bool isHighlight = false}) {
+    final theme = controller.theme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
       decoration: BoxDecoration(
-        color: isHighlight ? const Color(0x33D4AF37) : Colors.black26,
+        color: isHighlight
+            ? (theme.isDark ? const Color(0x33D4AF37) : const Color(0xFFFEF3C7))
+            : (theme.isDark ? Colors.black26 : const Color(0xFFF1F5F9)),
         borderRadius: BorderRadius.circular(6),
-        border: isHighlight ? Border.all(color: const Color(0x66D4AF37)) : null,
+        border: Border.all(
+          color: isHighlight
+              ? (theme.isDark ? const Color(0x66D4AF37) : const Color(0xFFF59E0B))
+              : theme.cardBorder,
+          width: 0.8,
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(icon, style: const TextStyle(fontSize: 10)),
-          const SizedBox(width: 4),
-          Text(
-            val,
-            style: const TextStyle(
-              color: Color(0xFFF7D070),
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(icon, style: const TextStyle(fontSize: 10)),
+            const SizedBox(width: 2.5),
+            Text(
+              val,
+              style: TextStyle(
+                color: isHighlight
+                    ? (theme.isDark ? const Color(0xFFF7D070) : const Color(0xFFB45309))
+                    : theme.textColor,
+                fontSize: 10.5,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 2.5),
+            Text(
+              label,
+              style: TextStyle(
+                color: theme.textSecondaryColor,
+                fontSize: 9,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -5,13 +5,35 @@ import '../models/board_paths.dart';
 import '../models/player.dart';
 import '../models/dice_type.dart';
 import '../theme/game_theme.dart';
+import '../i18n/localization_service.dart';
+import '../i18n/app_strings.dart';
+
+class GameLogEntry {
+  final String key;
+  final Map<String, String> params;
+  final String rawText;
+
+  const GameLogEntry({
+    required this.key,
+    this.params = const {},
+    this.rawText = '',
+  });
+
+  String getLocalized(AppLanguage lang) {
+    if (key.isNotEmpty) {
+      return AppStrings.get(lang, key, params);
+    }
+    return rawText;
+  }
+}
 
 class GameController extends ChangeNotifier {
   int numPlayers = 4;
+  bool isVsAI = true;
   List<Player> players = [];
   int currentPlayerIdx = 0;
   DiceType diceType = DiceType.whiteStone;
-  GameTheme theme = GameTheme.royalRajwada;
+  GameTheme theme = GameTheme.cleanMinimal; // Default is Clean Minimal
 
   int? currentRoll;
   List<int> shells = [1, 0, 1, 0]; // 0=closed (flat), 1=open (mouth/marked up)
@@ -20,12 +42,27 @@ class GameController extends ChangeNotifier {
   bool waitingForPawnChoice = false;
   List<int> validPawnIndices = [];
   Player? winner;
-  List<String> logs = [];
+  List<GameLogEntry> logs = [];
 
   final Random _random = Random();
+  bool _disposed = false;
+  int _gameSessionId = 0;
 
-  GameController() {
-    startNewGame();
+  GameController({int initialPlayers = 4, bool vsAI = true}) {
+    startNewGame(playerCount: initialPlayers, vsAI: vsAI);
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) {
+      super.notifyListeners();
+    }
   }
 
   void setDiceType(DiceType type) {
@@ -46,9 +83,12 @@ class GameController extends ChangeNotifier {
   Player get currentPlayer => players[currentPlayerIdx];
 
   void startNewGame({int playerCount = 4, bool vsAI = true}) {
+    _gameSessionId++;
     numPlayers = playerCount;
-    final defaultPlayers = BoardPaths.createDefaultPlayers(singlePlayer: vsAI);
-    players = defaultPlayers.sublist(0, numPlayers);
+    isVsAI = vsAI;
+
+    // Use BoardPaths.createGamePlayers to ensure proper symmetric paths
+    players = BoardPaths.createGamePlayers(numPlayers, vsAI: isVsAI);
 
     currentPlayerIdx = 0;
     currentRoll = null;
@@ -58,18 +98,25 @@ class GameController extends ChangeNotifier {
     waitingForPawnChoice = false;
     validPawnIndices = [];
     winner = null;
-    logs = ["🎉 New Game began with $numPlayers players!"];
+
+    logs = [
+      GameLogEntry(
+        key: 'logNewGame',
+        params: {'count': '$numPlayers'},
+      ),
+    ];
 
     notifyListeners();
     _checkAITurn();
   }
 
-  /// Roll the 4 Cowrie Shells
+  /// Roll the 4 Cowrie Shells / Traditional Dice
   Future<void> rollCowries() async {
-    if (isRolling || isMovingPawn || waitingForPawnChoice || winner != null) {
+    if (_disposed || isRolling || isMovingPawn || waitingForPawnChoice || winner != null) {
       return;
     }
 
+    final currentSession = _gameSessionId;
     isRolling = true;
     notifyListeners();
 
@@ -77,8 +124,9 @@ class GameController extends ChangeNotifier {
       HapticFeedback.lightImpact();
     } catch (_) {}
 
-    // Shell toss simulation
-    await Future.delayed(const Duration(milliseconds: 700));
+    // Shell toss simulation delay
+    await Future.delayed(const Duration(milliseconds: 650));
+    if (_disposed || currentSession != _gameSessionId || winner != null) return;
 
     // 4 Cowrie shells: each has 50% probability
     shells = List.generate(4, (_) => _random.nextBool() ? 1 : 0);
@@ -90,8 +138,13 @@ class GameController extends ChangeNotifier {
     isRolling = false;
 
     final isBonus = (rollValue == 4 || rollValue == 8);
-    final rollDesc = rollValue == 8 ? "8 (चंपाळ / Champool!)" : "$rollValue";
-    addLog("${currentPlayer.avatar} ${currentPlayer.name} rolled $rollDesc${isBonus ? ' 🌟 Bonus Roll!' : ''}");
+    final rollDesc = rollValue == 8 ? "8 (चंपाळ / Champal!)" : "$rollValue";
+
+    addStructuredLog('logRolled', {
+      'player': "${currentPlayer.avatar} ${currentPlayer.name}",
+      'roll': rollDesc,
+      'bonus': isBonus ? ' 🌟' : '',
+    });
 
     if (isBonus) {
       try {
@@ -102,7 +155,10 @@ class GameController extends ChangeNotifier {
     validPawnIndices = getValidPawnsForRoll(currentPlayerIdx, rollValue);
 
     if (validPawnIndices.isEmpty) {
-      addLog("❌ No valid moves for ${currentPlayer.name} with roll $rollValue.");
+      addStructuredLog('logNoMoves', {
+        'player': currentPlayer.name,
+        'roll': '$rollValue',
+      });
       currentRoll = null;
       notifyListeners();
       _nextTurn(advancePlayer: !isBonus);
@@ -113,13 +169,16 @@ class GameController extends ChangeNotifier {
     notifyListeners();
 
     if (currentPlayer.isAI) {
-      Future.delayed(const Duration(milliseconds: 700), () {
-        _makeAIDecision();
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (!_disposed && currentSession == _gameSessionId && winner == null) {
+          _makeAIDecision();
+        }
       });
     }
   }
 
   List<int> getValidPawnsForRoll(int playerIdx, int roll) {
+    if (playerIdx < 0 || playerIdx >= players.length) return [];
     final player = players[playerIdx];
     final valid = <int>[];
 
@@ -159,9 +218,10 @@ class GameController extends ChangeNotifier {
 
   /// Move selected pawn
   Future<void> movePawn(int pawnIndex) async {
-    if (!waitingForPawnChoice || isMovingPawn) return;
+    if (_disposed || !waitingForPawnChoice || isMovingPawn) return;
     if (!validPawnIndices.contains(pawnIndex)) return;
 
+    final currentSession = _gameSessionId;
     waitingForPawnChoice = false;
     isMovingPawn = true;
     notifyListeners();
@@ -181,17 +241,20 @@ class GameController extends ChangeNotifier {
       }
       pawn.stepIndex = cur;
       notifyListeners();
-      await Future.delayed(const Duration(milliseconds: 160));
+      await Future.delayed(const Duration(milliseconds: 140));
+      if (_disposed || currentSession != _gameSessionId) return;
     }
 
     pawn.stepIndex = targetStep;
-    final finalCoord = BoardPaths.playerPaths[currentPlayerIdx][targetStep];
+    final finalCoord = BoardPaths.playerPaths[player.pathIndex][targetStep];
 
     bool reachedHome = false;
     if (targetStep == 24) {
       pawn.isHome = true;
       reachedHome = true;
-      addLog("🏆 ${player.avatar} ${player.name}'s pawn reached Center Home (Swarga)!");
+      addStructuredLog('logReachedSwarga', {
+        'player': "${player.avatar} ${player.name}",
+      });
     }
 
     bool captured = false;
@@ -204,7 +267,9 @@ class GameController extends ChangeNotifier {
       winner = player;
       isMovingPawn = false;
       currentRoll = null;
-      addLog("👑🎊 ${player.name} HAS WON THE GAME! 🎊👑");
+      addStructuredLog('logWonGame', {
+        'player': player.name,
+      });
       notifyListeners();
       return;
     }
@@ -217,7 +282,9 @@ class GameController extends ChangeNotifier {
     notifyListeners();
 
     if (getsBonusTurn) {
-      addLog("✨ ${player.name} earns an Extra Roll!");
+      addStructuredLog('logEarnedExtraRoll', {
+        'player': player.name,
+      });
       _checkAITurn();
     } else {
       _nextTurn(advancePlayer: true);
@@ -225,6 +292,7 @@ class GameController extends ChangeNotifier {
   }
 
   bool _checkCapture(BoardCoord coord, int activePlayerIdx) {
+    if (BoardPaths.isSafe(coord)) return false;
     bool capturedAny = false;
     final activePlayer = players[activePlayerIdx];
 
@@ -232,9 +300,10 @@ class GameController extends ChangeNotifier {
       if (pIdx == activePlayerIdx) continue;
       final otherPlayer = players[pIdx];
 
+      // Fix: check all pawns on this unsafe square
       for (final enemyPawn in otherPlayer.pawns) {
         if (enemyPawn.isHome) continue;
-        final enemyCoord = BoardPaths.playerPaths[pIdx][enemyPawn.stepIndex];
+        final enemyCoord = BoardPaths.playerPaths[otherPlayer.pathIndex][enemyPawn.stepIndex];
 
         if (enemyCoord == coord) {
           enemyPawn.stepIndex = 0; // Return to starting sanctuary
@@ -245,13 +314,17 @@ class GameController extends ChangeNotifier {
             HapticFeedback.heavyImpact();
           } catch (_) {}
 
-          addLog("⚔️ ${activePlayer.name} captured ${otherPlayer.name}'s pawn! Sent back to base!");
+          addStructuredLog('logCaptured', {
+            'killer': activePlayer.name,
+            'victim': otherPlayer.name,
+          });
 
           if (!activePlayer.hasPani) {
             activePlayer.hasPani = true;
-            addLog("🌊 ${activePlayer.avatar} ${activePlayer.name} unlocked PANI (पाण्यात जाणे)! Eligible for inner track!");
+            addStructuredLog('logUnlockedPani', {
+              'player': "${activePlayer.avatar} ${activePlayer.name}",
+            });
           }
-          break;
         }
       }
     }
@@ -273,10 +346,12 @@ class GameController extends ChangeNotifier {
   }
 
   void _checkAITurn() {
-    if (winner != null) return;
+    if (_disposed || winner != null) return;
+    final currentSession = _gameSessionId;
+
     if (currentPlayer.isAI && !isRolling && !isMovingPawn && !waitingForPawnChoice) {
-      Future.delayed(const Duration(milliseconds: 900), () {
-        if (winner == null && currentPlayer.isAI) {
+      Future.delayed(const Duration(milliseconds: 750), () {
+        if (!_disposed && currentSession == _gameSessionId && winner == null && currentPlayer.isAI) {
           rollCowries();
         }
       });
@@ -284,7 +359,7 @@ class GameController extends ChangeNotifier {
   }
 
   void _makeAIDecision() {
-    if (!waitingForPawnChoice || validPawnIndices.isEmpty) return;
+    if (_disposed || !waitingForPawnChoice || validPawnIndices.isEmpty) return;
 
     final player = currentPlayer;
     int bestPawnIdx = validPawnIndices.first;
@@ -293,7 +368,7 @@ class GameController extends ChangeNotifier {
     for (final pIdx in validPawnIndices) {
       final pawn = player.pawns[pIdx];
       final targetStep = calculateTargetStep(player, pawn.stepIndex, currentRoll!)!;
-      final targetCoord = BoardPaths.playerPaths[currentPlayerIdx][targetStep];
+      final targetCoord = BoardPaths.playerPaths[player.pathIndex][targetStep];
 
       double score = 0;
 
@@ -329,20 +404,29 @@ class GameController extends ChangeNotifier {
   }
 
   bool _wouldCapture(BoardCoord coord, int playerIdx) {
+    if (BoardPaths.isSafe(coord)) return false;
+
     for (int i = 0; i < players.length; i++) {
       if (i == playerIdx) continue;
-      for (final p in players[i].pawns) {
+      final player = players[i];
+      for (final p in player.pawns) {
         if (p.isHome) continue;
-        final enemyCoord = BoardPaths.playerPaths[i][p.stepIndex];
+        final enemyCoord = BoardPaths.playerPaths[player.pathIndex][p.stepIndex];
         if (enemyCoord == coord) return true;
       }
     }
     return false;
   }
 
+  void addStructuredLog(String key, Map<String, String> params) {
+    logs.insert(0, GameLogEntry(key: key, params: params));
+    if (logs.length > 40) logs.removeLast();
+    notifyListeners();
+  }
+
   void addLog(String message) {
-    logs.insert(0, message);
-    if (logs.length > 30) logs.removeLast();
+    logs.insert(0, GameLogEntry(key: '', rawText: message));
+    if (logs.length > 40) logs.removeLast();
     notifyListeners();
   }
 }
